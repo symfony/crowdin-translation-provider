@@ -131,7 +131,7 @@ final class CrowdinProvider implements ProviderInterface
             }
         }
 
-        /* @var ResponseInterface $response */
+        /** @var ResponseInterface $response */
         $downloads = [];
         foreach ($responses as [$response, $locale, $domain]) {
             if (204 === $response->getStatusCode()) {
