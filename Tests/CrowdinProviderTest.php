@@ -11,6 +11,7 @@
 
 namespace Symfony\Component\Translation\Bridge\Crowdin\Tests;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -504,9 +505,7 @@ XLIFF;
         $provider->write($translatorBag);
     }
 
-    /**
-     * @dataProvider getResponsesForProcessAddFileAndUploadTranslations
-     */
+    #[DataProvider('getResponsesForProcessAddFileAndUploadTranslations')]
     public function testCompleteWriteProcessAddFileAndUploadTranslations(TranslatorBag $translatorBag, string $expectedLocale, string $expectedMessagesTranslationsContent)
     {
         $this->xliffFileDumper = new XliffFileDumper();
@@ -701,9 +700,7 @@ XLIFF
         ];
     }
 
-    /**
-     * @dataProvider getResponsesForOneLocaleAndOneDomain
-     */
+    #[DataProvider('getResponsesForOneLocaleAndOneDomain')]
     public function testReadForOneLocaleAndOneDomain(string $locale, string $domain, string $responseContent, TranslatorBag $expectedTranslatorBag, string $expectedTargetLanguageId)
     {
         $responses = [
@@ -829,9 +826,7 @@ XLIFF
         ];
     }
 
-    /**
-     * @dataProvider getResponsesForDefaultLocaleAndOneDomain
-     */
+    #[DataProvider('getResponsesForDefaultLocaleAndOneDomain')]
     public function testReadForDefaultLocaleAndOneDomain(string $locale, string $domain, string $responseContent, TranslatorBag $expectedTranslatorBag)
     {
         $responses = [
