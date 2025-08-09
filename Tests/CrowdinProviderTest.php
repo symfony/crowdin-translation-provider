@@ -790,8 +790,7 @@ class CrowdinProviderTest extends ProviderTestCase
                 </body>
               </file>
             </xliff>
-            XLIFF
-            ,
+            XLIFF,
             $expectedTranslatorBagFr, 'fr',
         ];
 
@@ -820,8 +819,7 @@ class CrowdinProviderTest extends ProviderTestCase
                 </body>
               </file>
             </xliff>
-            XLIFF
-            ,
+            XLIFF,
             $expectedTranslatorBagEnUs, 'en-GB',
         ];
     }
@@ -915,8 +913,7 @@ class CrowdinProviderTest extends ProviderTestCase
                 </body>
               </file>
             </xliff>
-            XLIFF
-            ,
+            XLIFF,
             $expectedTranslatorBagEn,
         ];
     }
