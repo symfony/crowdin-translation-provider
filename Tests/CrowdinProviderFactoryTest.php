@@ -11,7 +11,11 @@
 
 namespace Symfony\Component\Translation\Bridge\Crowdin\Tests;
 
+use Psr\Log\NullLogger;
+use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\Translation\Bridge\Crowdin\CrowdinProviderFactory;
+use Symfony\Component\Translation\Dumper\XliffFileDumper;
+use Symfony\Component\Translation\Loader\ArrayLoader;
 use Symfony\Component\Translation\Provider\ProviderFactoryInterface;
 use Symfony\Component\Translation\Test\ProviderFactoryTestCase;
 
@@ -48,6 +52,6 @@ class CrowdinProviderFactoryTest extends ProviderFactoryTestCase
 
     public function createFactory(): ProviderFactoryInterface
     {
-        return new CrowdinProviderFactory($this->getClient(), $this->getLogger(), $this->getDefaultLocale(), $this->getLoader(), $this->getXliffFileDumper());
+        return new CrowdinProviderFactory(new MockHttpClient(), new NullLogger(), $this->getDefaultLocale(), new ArrayLoader(), new XliffFileDumper());
     }
 }
