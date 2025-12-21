@@ -746,8 +746,8 @@ class CrowdinProviderTest extends ProviderTestCase
             },
         ];
 
-        $loader = $this->getLoader();
-        $loader->expects($this->once())
+        $this->loader = $this->createMock(LoaderInterface::class);
+        $this->loader->expects($this->once())
             ->method('load')
             ->willReturn($expectedTranslatorBag->getCatalogue($locale));
 
@@ -869,8 +869,8 @@ class CrowdinProviderTest extends ProviderTestCase
             },
         ];
 
-        $loader = $this->getLoader();
-        $loader->expects($this->once())
+        $this->loader = $this->createMock(LoaderInterface::class);
+        $this->loader->expects($this->once())
             ->method('load')
             ->willReturn($expectedTranslatorBag->getCatalogue($locale));
 
@@ -1053,13 +1053,7 @@ class CrowdinProviderTest extends ProviderTestCase
                 $this->assertSame('GET', $method);
                 $this->assertSame('https://api.crowdin.com/api/v2/projects/1/strings?fileId=12&limit=500&offset=500', $url);
 
-                $response = $this->createMock(ResponseInterface::class);
-                $response->expects($this->any())
-                    ->method('getContent')
-                    ->with(false)
-                    ->willReturn(json_encode(['data' => []]));
-
-                return $response;
+                return new JsonMockResponse(['data' => []]);
             },
             'deleteString1' => function (string $method, string $url): ResponseInterface {
                 $this->assertSame('DELETE', $method);
@@ -1164,13 +1158,7 @@ class CrowdinProviderTest extends ProviderTestCase
                 $this->assertSame('GET', $method);
                 $this->assertSame('https://api.crowdin.com/api/v2/projects/1/strings?fileId=12&limit=500&offset=500', $url);
 
-                $response = $this->createMock(ResponseInterface::class);
-                $response->expects($this->any())
-                    ->method('getContent')
-                    ->with(false)
-                    ->willReturn(json_encode(['data' => []]));
-
-                return $response;
+                return new JsonMockResponse(['data' => []]);
             },
             'deleteString1' => function (string $method, string $url): ResponseInterface {
                 $this->assertSame('DELETE', $method);
