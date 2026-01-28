@@ -15,6 +15,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Translation\Dumper\XliffFileDumper;
 use Symfony\Component\Translation\Exception\ProviderException;
 use Symfony\Component\Translation\Loader\LoaderInterface;
+use Symfony\Component\Translation\MessageCatalogue;
 use Symfony\Component\Translation\Provider\ProviderInterface;
 use Symfony\Component\Translation\TranslatorBag;
 use Symfony\Component\Translation\TranslatorBagInterface;
@@ -76,6 +77,25 @@ final class CrowdinProvider implements ProviderInterface
                     if (!$fileId) {
                         $file = $this->addFile($domain, $content);
                     } else {
+                        $sourceFileInfo = $this->downloadSourceFile($fileId);
+                        $sourceFile = $this->client->request('GET', $sourceFileInfo->toArray()['data']['url']);
+
+                        $providerCatalogue = $this->loader->load(
+                            $sourceFile->getContent(),
+                            $this->defaultLocale,
+                            $domain
+                        );
+                        $allMessages = array_merge(
+                            $providerCatalogue->all($domain),
+                            $catalogue->all($domain)
+                        );
+
+                        $content = $this->xliffFileDumper->formatCatalogue(
+                            new MessageCatalogue($this->defaultLocale, [$domain => $allMessages]),
+                            $domain,
+                            ['default_locale' => $this->defaultLocale],
+                        );
+
                         $file = $this->updateFile($fileId, $domain, $content);
                     }
 
