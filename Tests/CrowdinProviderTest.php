@@ -22,6 +22,7 @@ use Symfony\Component\Translation\Dumper\XliffFileDumper;
 use Symfony\Component\Translation\Exception\ProviderException;
 use Symfony\Component\Translation\Loader\ArrayLoader;
 use Symfony\Component\Translation\Loader\LoaderInterface;
+use Symfony\Component\Translation\Loader\XliffFileLoader;
 use Symfony\Component\Translation\MessageCatalogue;
 use Symfony\Component\Translation\Provider\ProviderInterface;
 use Symfony\Component\Translation\Test\ProviderTestCase;
@@ -241,6 +242,24 @@ class CrowdinProviderTest extends ProviderTestCase
     {
         $this->xliffFileDumper = new XliffFileDumper();
 
+        $sourceFileContent = <<<'XLIFF'
+            <?xml version="1.0" encoding="utf-8"?>
+            <xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+              <file source-language="en" target-language="en" datatype="plaintext" original="file.ext">
+                <header>
+                  <tool tool-id="symfony" tool-name="Symfony"/>
+                </header>
+                <body>
+                  <trans-unit id="%s" resname="a">
+                    <source>a</source>
+                    <target>trans_en_a</target>
+                  </trans-unit>
+                </body>
+              </file>
+            </xliff>
+
+            XLIFF;
+
         $expectedMessagesFileContent = <<<'XLIFF'
             <?xml version="1.0" encoding="utf-8"?>
             <xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
@@ -252,6 +271,10 @@ class CrowdinProviderTest extends ProviderTestCase
                   <trans-unit id="%s" resname="a">
                     <source>a</source>
                     <target>trans_en_a</target>
+                  </trans-unit>
+                  <trans-unit id="%s" resname="b">
+                    <source>b</source>
+                    <target>trans_en_b</target>
                   </trans-unit>
                 </body>
               </file>
@@ -280,6 +303,18 @@ class CrowdinProviderTest extends ProviderTestCase
 
                 return new MockResponse(json_encode(['data' => ['languageMapping' => []]]));
             },
+            'downloadSource' => function (string $method, string $url): ResponseInterface {
+                $this->assertSame('GET', $method);
+                $this->assertSame('https://api.crowdin.com/api/v2/projects/1/files/12/download', $url);
+
+                return new JsonMockResponse(['data' => ['url' => 'https://file.url']]);
+            },
+            'downloadFile' => function (string $method, string $url) use ($sourceFileContent): ResponseInterface {
+                $this->assertSame('GET', $method);
+                $this->assertSame('https://file.url/', $url);
+
+                return new MockResponse($sourceFileContent);
+            },
             'addStorage' => function (string $method, string $url, array $options = []) use ($expectedMessagesFileContent): ResponseInterface {
                 $this->assertSame('POST', $method);
                 $this->assertSame('https://api.crowdin.com/api/v2/storages', $url);
@@ -289,7 +324,7 @@ class CrowdinProviderTest extends ProviderTestCase
 
                 return new JsonMockResponse(['data' => ['id' => 19]], ['http_code' => 201]);
             },
-            'UpdateFile' => function (string $method, string $url, array $options = []): ResponseInterface {
+            'updateFile' => function (string $method, string $url, array $options = []): ResponseInterface {
                 $this->assertSame('PUT', $method);
                 $this->assertSame('https://api.crowdin.com/api/v2/projects/1/files/12', $url);
                 $this->assertSame('{"storageId":19}', $options['body']);
@@ -300,14 +335,14 @@ class CrowdinProviderTest extends ProviderTestCase
 
         $translatorBag = new TranslatorBag();
         $translatorBag->addCatalogue(new MessageCatalogue('en', [
-            'messages' => ['a' => 'trans_en_a'],
+            'messages' => ['b' => 'trans_en_b'],
             'validators' => ['post.num_comments' => '{count, plural, one {# comment} other {# comments}}'],
         ]));
 
         $provider = self::createProvider((new MockHttpClient($responses))->withOptions([
             'base_uri' => 'https://api.crowdin.com/api/v2/projects/1/',
             'auth_bearer' => 'API_TOKEN',
-        ]), $this->getLoader(), $this->getLogger(), $this->getDefaultLocale(), 'api.crowdin.com/api/v2/projects/1/');
+        ]), new XliffFileLoader(), $this->getLogger(), $this->getDefaultLocale(), 'api.crowdin.com/api/v2/projects/1/');
 
         $this->expectException(ProviderException::class);
         $this->expectExceptionMessage('Unable to update file in Crowdin for file ID "12" and domain "messages".');
@@ -318,6 +353,24 @@ class CrowdinProviderTest extends ProviderTestCase
     public function testWriteUploadTranslationsServerError()
     {
         $this->xliffFileDumper = new XliffFileDumper();
+
+        $sourceFileContent = <<<'XLIFF'
+            <?xml version="1.0" encoding="utf-8"?>
+            <xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+              <file source-language="en" target-language="en" datatype="plaintext" original="file.ext">
+                <header>
+                  <tool tool-id="symfony" tool-name="Symfony"/>
+                </header>
+                <body>
+                  <trans-unit id="%s" resname="a">
+                    <source>a</source>
+                    <target>trans_en_a</target>
+                  </trans-unit>
+                </body>
+              </file>
+            </xliff>
+
+            XLIFF;
 
         $expectedMessagesTranslationsContent = <<<'XLIFF'
             <?xml version="1.0" encoding="utf-8"?>
@@ -375,6 +428,18 @@ class CrowdinProviderTest extends ProviderTestCase
 
                 return new MockResponse(json_encode(['data' => ['languageMapping' => []]]));
             },
+            'downloadSource' => function (string $method, string $url): ResponseInterface {
+                $this->assertSame('GET', $method);
+                $this->assertSame('https://api.crowdin.com/api/v2/projects/1/files/12/download', $url);
+
+                return new JsonMockResponse(['data' => ['url' => 'https://file.url']]);
+            },
+            'downloadFile' => function (string $method, string $url) use ($sourceFileContent): ResponseInterface {
+                $this->assertSame('GET', $method);
+                $this->assertSame('https://file.url/', $url);
+
+                return new MockResponse($sourceFileContent);
+            },
             'addStorage' => function (string $method, string $url, array $options = []) use ($expectedMessagesFileContent): ResponseInterface {
                 $this->assertSame('POST', $method);
                 $this->assertSame('https://api.crowdin.com/api/v2/storages', $url);
@@ -400,7 +465,7 @@ class CrowdinProviderTest extends ProviderTestCase
 
                 return new JsonMockResponse(['data' => ['id' => 19]], ['http_code' => 201]);
             },
-            'UploadTranslations' => function (string $method, string $url, array $options = []): ResponseInterface {
+            'uploadTranslations' => function (string $method, string $url, array $options = []): ResponseInterface {
                 $this->assertSame('POST', $method);
                 $this->assertSame(\sprintf('https://api.crowdin.com/api/v2/projects/1/translations/%s', 'fr'), $url);
                 $this->assertSame('{"storageId":19,"fileId":12}', $options['body']);
@@ -420,7 +485,7 @@ class CrowdinProviderTest extends ProviderTestCase
         $provider = self::createProvider((new MockHttpClient($responses))->withOptions([
             'base_uri' => 'https://api.crowdin.com/api/v2/projects/1/',
             'auth_bearer' => 'API_TOKEN',
-        ]), $this->getLoader(), $this->getLogger(), $this->getDefaultLocale(), 'api.crowdin.com/api/v2/projects/1/');
+        ]), new XliffFileLoader(), $this->getLogger(), $this->getDefaultLocale(), 'api.crowdin.com/api/v2/projects/1/');
 
         $this->expectException(ProviderException::class);
         $this->expectExceptionMessage('Unable to upload translations to Crowdin.');
@@ -431,6 +496,24 @@ class CrowdinProviderTest extends ProviderTestCase
     public function testCompleteWriteProcessUpdateFiles()
     {
         $this->xliffFileDumper = new XliffFileDumper();
+
+        $sourceFileContent = <<<'XLIFF'
+            <?xml version="1.0" encoding="utf-8"?>
+            <xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+              <file source-language="en" target-language="en" datatype="plaintext" original="file.ext">
+                <header>
+                  <tool tool-id="symfony" tool-name="Symfony"/>
+                </header>
+                <body>
+                  <trans-unit id="%s" resname="a">
+                    <source>a</source>
+                    <target>trans_en_a</target>
+                  </trans-unit>
+                </body>
+              </file>
+            </xliff>
+
+            XLIFF;
 
         $expectedMessagesFileContent = <<<'XLIFF'
             <?xml version="1.0" encoding="utf-8"?>
@@ -474,6 +557,18 @@ class CrowdinProviderTest extends ProviderTestCase
 
                 return new MockResponse(json_encode(['data' => ['languageMapping' => []]]));
             },
+            'downloadSource' => function (string $method, string $url): ResponseInterface {
+                $this->assertSame('GET', $method);
+                $this->assertSame('https://api.crowdin.com/api/v2/projects/1/files/12/download', $url);
+
+                return new JsonMockResponse(['data' => ['url' => 'https://file.url']]);
+            },
+            'downloadFile' => function (string $method, string $url) use ($sourceFileContent): ResponseInterface {
+                $this->assertSame('GET', $method);
+                $this->assertSame('https://file.url/', $url);
+
+                return new MockResponse($sourceFileContent);
+            },
             'addStorage' => function (string $method, string $url, array $options = []) use ($expectedMessagesFileContent): ResponseInterface {
                 $this->assertSame('POST', $method);
                 $this->assertSame('https://api.crowdin.com/api/v2/storages', $url);
@@ -483,7 +578,7 @@ class CrowdinProviderTest extends ProviderTestCase
 
                 return new JsonMockResponse(['data' => ['id' => 19]], ['http_code' => 201]);
             },
-            'UpdateFile' => function (string $method, string $url, array $options = []): ResponseInterface {
+            'updateFile' => function (string $method, string $url, array $options = []): ResponseInterface {
                 $this->assertSame('PUT', $method);
                 $this->assertSame('https://api.crowdin.com/api/v2/projects/1/files/12', $url);
                 $this->assertSame('{"storageId":19}', $options['body']);
@@ -500,7 +595,7 @@ class CrowdinProviderTest extends ProviderTestCase
         $provider = self::createProvider((new MockHttpClient($responses))->withOptions([
             'base_uri' => 'https://api.crowdin.com/api/v2/projects/1/',
             'auth_bearer' => 'API_TOKEN',
-        ]), $this->getLoader(), $this->getLogger(), $this->getDefaultLocale(), 'api.crowdin.com/api/v2/projects/1/');
+        ]), new XliffFileLoader(), $this->getLogger(), $this->getDefaultLocale(), 'api.crowdin.com/api/v2/projects/1/');
 
         $provider->write($translatorBag);
     }
@@ -509,6 +604,24 @@ class CrowdinProviderTest extends ProviderTestCase
     public function testCompleteWriteProcessAddFileAndUploadTranslations(TranslatorBag $translatorBag, string $expectedLocale, string $expectedMessagesTranslationsContent)
     {
         $this->xliffFileDumper = new XliffFileDumper();
+
+        $sourceFileContent = <<<'XLIFF'
+            <?xml version="1.0" encoding="utf-8"?>
+            <xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+              <file source-language="en" target-language="en" datatype="plaintext" original="file.ext">
+                <header>
+                  <tool tool-id="symfony" tool-name="Symfony"/>
+                </header>
+                <body>
+                  <trans-unit id="%s" resname="a">
+                    <source>a</source>
+                    <target>trans_en_a</target>
+                  </trans-unit>
+                </body>
+              </file>
+            </xliff>
+
+            XLIFF;
 
         $expectedMessagesFileContent = <<<'XLIFF'
             <?xml version="1.0" encoding="utf-8"?>
@@ -555,6 +668,18 @@ class CrowdinProviderTest extends ProviderTestCase
                         ],
                     ],
                 ]));
+            },
+            'downloadSource' => function (string $method, string $url): ResponseInterface {
+                $this->assertSame('GET', $method);
+                $this->assertSame('https://api.crowdin.com/api/v2/projects/1/files/12/download', $url);
+
+                return new JsonMockResponse(['data' => ['url' => 'https://file.url']]);
+            },
+            'downloadFile' => function (string $method, string $url) use ($sourceFileContent): ResponseInterface {
+                $this->assertSame('GET', $method);
+                $this->assertSame('https://file.url/', $url);
+
+                return new MockResponse($sourceFileContent);
             },
             'addStorage' => function (string $method, string $url, array $options = []) use ($expectedMessagesFileContent): ResponseInterface {
                 $this->assertSame('POST', $method);
@@ -609,7 +734,7 @@ class CrowdinProviderTest extends ProviderTestCase
         $provider = self::createProvider((new MockHttpClient($responses))->withOptions([
             'base_uri' => 'https://api.crowdin.com/api/v2/projects/1/',
             'auth_bearer' => 'API_TOKEN',
-        ]), $this->getLoader(), $this->getLogger(), $this->getDefaultLocale(), 'api.crowdin.com/api/v2/projects/1/');
+        ]), new XliffFileLoader(), $this->getLogger(), $this->getDefaultLocale(), 'api.crowdin.com/api/v2/projects/1/');
 
         $provider->write($translatorBag);
     }
