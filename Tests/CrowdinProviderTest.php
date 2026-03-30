@@ -661,7 +661,7 @@ class CrowdinProviderTest extends ProviderTestCase
                             'data' => [
                                 'id' => 12,
                                 'name' => 'messages.xlf',
-                            ]
+                            ],
                         ],
                     ],
                 ]);
