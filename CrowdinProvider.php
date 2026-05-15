@@ -32,6 +32,8 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  */
 final class CrowdinProvider implements ProviderInterface
 {
+    private const IMPORT_POLL_TIMEOUT_SECONDS = 300;
+
     public function __construct(
         private readonly HttpClientInterface $client,
         private readonly LoaderInterface $loader,
@@ -111,6 +113,8 @@ final class CrowdinProvider implements ProviderInterface
 
     private function waitForImportCompletion(array $responses): void
     {
+        $deadline = hrtime(true) + self::IMPORT_POLL_TIMEOUT_SECONDS * 1_000_000_000;
+
         while ($responses) {
             foreach ($responses as $index => $response) {
                 if (202 !== $statusCode = $response->getStatusCode()) {
@@ -134,13 +138,14 @@ final class CrowdinProvider implements ProviderInterface
                 }
 
                 $importStatusData = $importStatusResponse->toArray()['data'];
+                $status = $importStatusData['status'] ?? 'unknown';
 
-                if ('finished' === $importStatusData['status']) {
+                if ('finished' === $status) {
                     unset($responses[$index]);
                     continue;
                 }
 
-                if ('failed' === $importStatusData['status']) {
+                if ('failed' === $status) {
                     $message = $importStatusData['attributes']['error']['message'] ?? null;
 
                     if ($message) {
@@ -150,12 +155,24 @@ final class CrowdinProvider implements ProviderInterface
                     }
 
                     unset($responses[$index]);
+                    continue;
+                }
+
+                if (!\in_array($status, ['in_progress', 'created'], true)) {
+                    $this->logger->error(\sprintf('Unable to upload translations to Crowdin: unexpected import status "%s".', $status));
+                    unset($responses[$index]);
                 }
             }
 
-            if ($responses) {
-                sleep(1);
+            if (!$responses) {
+                break;
             }
+
+            if (hrtime(true) >= $deadline) {
+                throw new ProviderException(\sprintf('Timed out after %d seconds while waiting for Crowdin to finish importing translations.', self::IMPORT_POLL_TIMEOUT_SECONDS), reset($responses));
+            }
+
+            sleep(1);
         }
     }
 
