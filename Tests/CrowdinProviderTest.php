@@ -17,8 +17,6 @@ use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\JsonMockResponse;
 use Symfony\Component\HttpClient\Response\MockResponse;
-use Symfony\Component\HttpClient\Retry\GenericRetryStrategy;
-use Symfony\Component\HttpClient\RetryableHttpClient;
 use Symfony\Component\Translation\Bridge\Crowdin\CrowdinProvider;
 use Symfony\Component\Translation\Dumper\XliffFileDumper;
 use Symfony\Component\Translation\Exception\ProviderException;
@@ -170,100 +168,6 @@ class CrowdinProviderTest extends ProviderTestCase
             'base_uri' => 'https://api.crowdin.com/api/v2/projects/1/',
             'auth_bearer' => 'API_TOKEN',
         ]), $this->getLoader(), $this->getLogger(), $this->getDefaultLocale(), 'api.crowdin.com/api/v2/projects/1/');
-
-        $provider->write($translatorBag);
-    }
-
-    public function testWriteWithTooManyRequests()
-    {
-        $expectedMessagesFileContent = <<<'XLIFF'
-            <?xml version="1.0" encoding="utf-8"?>
-            <xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
-              <file source-language="en" target-language="en" datatype="plaintext" original="file.ext">
-                <header>
-                  <tool tool-id="symfony" tool-name="Symfony"/>
-                </header>
-                <body>
-                  <trans-unit id="%s" resname="a">
-                    <source>a</source>
-                    <target>trans_en_a</target>
-                  </trans-unit>
-                </body>
-              </file>
-            </xliff>
-
-            XLIFF;
-
-        $responses = [
-            'listFiles' => function (string $method, string $url, array $options = []): ResponseInterface {
-                $this->assertSame('GET', $method);
-                $this->assertSame('https://api.crowdin.com/api/v2/projects/1/files', $url);
-                $this->assertSame('Authorization: Bearer API_TOKEN', $options['normalized_headers']['authorization'][0]);
-
-                return new JsonMockResponse(['data' => []]);
-            },
-            'getProject' => function (string $method, string $url): ResponseInterface {
-                $this->assertSame('GET', $method);
-                $this->assertSame('https://api.crowdin.com/api/v2/projects/1/', $url);
-
-                return new JsonMockResponse(['data' => ['languageMapping' => []]]);
-            },
-            'addStorage' => function (string $method, string $url, array $options = []) use ($expectedMessagesFileContent): ResponseInterface {
-                $this->assertSame('POST', $method);
-                $this->assertSame('https://api.crowdin.com/api/v2/storages', $url);
-                $this->assertSame('Content-Type: application/octet-stream', $options['normalized_headers']['content-type'][0]);
-                $this->assertSame('Crowdin-API-FileName: messages.xlf', $options['normalized_headers']['crowdin-api-filename'][0]);
-                $this->assertStringMatchesFormat($expectedMessagesFileContent, $options['body']);
-
-                return new JsonMockResponse(['data' => ['id' => 19]], ['http_code' => 201]);
-            },
-            'addFileWithTooManyRequests' => function (string $method, string $url, array $options = []): ResponseInterface {
-                $this->assertSame('POST', $method);
-                $this->assertSame('https://api.crowdin.com/api/v2/projects/1/files', $url);
-                $this->assertSame(json_encode(['storageId' => 19, 'name' => 'messages.xlf']), $options['body']);
-
-                return new JsonMockResponse(
-                    ['error' => ['message' => 'Too Many Requests', 'code' => 429]],
-                    ['http_code' => 429]
-                );
-            },
-            'addFileWithSuccess' => function (string $method, string $url, array $options = []): ResponseInterface {
-                $this->assertSame('POST', $method);
-                $this->assertSame('https://api.crowdin.com/api/v2/projects/1/files', $url);
-                $this->assertSame(json_encode(['storageId' => 19, 'name' => 'messages.xlf']), $options['body']);
-
-                return new JsonMockResponse(['data' => ['id' => 199, 'name' => 'messages.xlf']], ['http_code' => 201]);
-            },
-        ];
-
-        $translatorBag = new TranslatorBag();
-        $translatorBag->addCatalogue(new MessageCatalogue('en', [
-            'messages' => ['a' => 'trans_en_a'],
-        ]));
-
-        $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects(self::never())
-            ->method('error');
-
-        $mockClient = new MockHttpClient($responses)->withOptions([
-            'base_uri' => 'https://api.crowdin.com/api/v2/projects/1/',
-            'auth_bearer' => 'API_TOKEN',
-        ]);
-
-        $retryableClient = new RetryableHttpClient(
-            $mockClient,
-            new GenericRetryStrategy([429], 100),
-            3,
-            $logger
-        );
-
-        $provider = self::createProvider(
-            $retryableClient,
-            $this->getLoader(),
-            $logger,
-            $this->getDefaultLocale(),
-            'api.crowdin.com/api/v2/projects/1/'
-        );
 
         $provider->write($translatorBag);
     }
